@@ -1,5 +1,4 @@
 {
-    // Comments are accepted in the manifest, even though it is JSON.
     "manifest_version": 3,
     "name": "Chrome Extension v3 Starter",
     "description": "A minimal example of a chrome extension using manifest v3",
@@ -14,7 +13,7 @@
         "default_title": "Chrome Addon v3 Starter",
         "default_popup": "popup/popup.html"
     },
-    "permissions": [],
+    "permissions": ["contextMenus", "nativeMessaging", "identity", "identity.email"],
     "host_permissions": [
         "*://*/*"
     ],
@@ -22,7 +21,8 @@
         "service_worker": "service-worker.js"
     },
     "content_scripts": [{
-        "js": ["foreground.js"],
-        "matches": ["https://github.com/*"]
+        "js": ["semanticUI/jquery.min.js", "semanticUI/semantic.min.js", "label-modal.js"],
+        "css" : ["semanticUI/semantic.min.css"],
+        "matches": ["*://*/*"]
     }]
 }
