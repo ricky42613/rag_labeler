@@ -19,7 +19,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse){
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
-        fetch('http://127.0.0.1:8000/api/data', {
+        fetch('http://127.0.0.1:8888/api/data', {
             method: 'POST',
             headers: headers,
             body: JSON.stringify(msg.data)

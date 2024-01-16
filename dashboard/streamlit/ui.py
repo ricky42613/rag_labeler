@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 import json
 
-backendUrl = 'http://127.0.0.1:8000'
+backendUrl = 'http://fastapi:8888'
 
 def num_of_data():
     rsp = requests.get(f'{backendUrl}/api/num_of_data')

@@ -4,7 +4,7 @@ services:
   fastapi:
     build: fastapi/
     ports: 
-      - 8000:8000
+      - 8888:8888
     networks:
       - deploy_network
     container_name: fastapi
