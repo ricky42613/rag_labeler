@@ -19,7 +19,7 @@ def search_data(q):
     rst = json.loads(rsp.text)
     return rst['data']
 
-numOfData = num_of_data()
+# numOfData = num_of_data()
 
 st.set_page_config(
     page_title="My Knowledge Base",
@@ -43,7 +43,7 @@ pageSize = 10
 prev, _ ,next = st.columns([2, 8, 2])
 
 if next.button("Next"):
-    if st.session_state.page_number + 1 > numOfData:
+    if st.session_state.page_number + 1 > num_of_data():
         st.session_state.page_number = 0
     else:
         st.session_state.page_number += 1
