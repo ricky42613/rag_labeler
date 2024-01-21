@@ -32,7 +32,7 @@
         })
         modal = `
         <div class="ui modal">
-            <div class="header">Header</div>
+            <div class="header">Knowledge Editor</div>
             <div class="content">
                 <div class="ui form">
                     <div class="field">
