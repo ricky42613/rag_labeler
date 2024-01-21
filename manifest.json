@@ -13,7 +13,7 @@
         "default_title": "Chrome Addon v3 Starter",
         "default_popup": "popup/popup.html"
     },
-    "permissions": ["contextMenus", "nativeMessaging", "identity", "identity.email"],
+    "permissions": ["contextMenus", "nativeMessaging", "identity", "identity.email", "storage"],
     "host_permissions": [
         "*://*/*"
     ],

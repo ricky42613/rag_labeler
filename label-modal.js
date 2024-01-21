@@ -14,12 +14,33 @@
             document.querySelector('.rag-context').value = msg.text
         }
     })
-    window.onload = function() {
+    window.onload = async function() {
+        function get_tags(){
+            return new Promise(function(resolve, reject){
+                chrome.runtime.sendMessage({'type': 'get-tags'}, function(rsp){
+                    if (rsp.status == 200){
+                        resolve(rsp.tags)
+                    }else{
+                        resolve([])
+                    }
+                })
+            })
+        }
+        let tags = await get_tags()
+        let tags_dropdown = tags.map(item=>{
+            return `<option value="${item}">${item}</option>`
+        })
         modal = `
         <div class="ui modal">
             <div class="header">Header</div>
             <div class="content">
-                <div class="ui form"><grammarly-extension data-grammarly-shadow-root="true" style="position: absolute; top: 0px; left: 0px; pointer-events: none;" class="dnXmp"></grammarly-extension><grammarly-extension data-grammarly-shadow-root="true" style="position: absolute; top: 0px; left: 0px; pointer-events: none;" class="dnXmp"></grammarly-extension>
+                <div class="ui form">
+                    <div class="field">
+                        <label>Tags</label>
+                        <select multiple="" name="tags" class="tags ui search fluid normal dropdown">
+                            ${tags_dropdown.join('')}
+                        </select>
+                    </div>
                     <div class="field">
                         <label>Context</label>
                         <textarea class="rag-context" spellcheck="false"></textarea>
@@ -40,13 +61,17 @@
             </div>
         </div>`
         document.querySelector('body').insertAdjacentHTML('afterend', modal)
+        console.log($('.ui.dropdown'))
+        $('.ui.dropdown').dropdown();
         $(document).on("click",".rag-save",function() {
+            let tags = $('.ui.dropdown').dropdown('get value')
             msg = {'type': 'save-label-data', 'data': {}}
             msg.data.context = document.querySelector('.rag-context').value
             msg.data.question = document.querySelector('.rag-question').value
             msg.data.answer = document.querySelector('.rag-answer').value
             msg.data.content = document.querySelector('body').outerHTML
             msg.data.url = window.location.href
+            msg.data.tags = tags
             chrome.runtime.sendMessage(msg, (response) => {
                 console.log('save-label-data: ', response);
                 if (response.status == 200){

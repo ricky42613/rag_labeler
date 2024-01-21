@@ -1,11 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <link rel="stylesheet" href="popup.css">
-    <title>Chrome Addon v3: popup</title>
-</head>
-<body>
-    This is the <span class="special-text">HTML</span> body of the addon.
-</body>
+    <head>
+        <meta charset="UTF-8">
+        <link rel="stylesheet" href="/semanticUI/semantic.min.css">
+        <script src="/semanticUI/jquery.min.js"></script>
+        <script src="/semanticUI/semantic.min.js"></script>
+        <script src="./popup.js"></script>
+        <title>Rag-labeler</title>
+    </head>
+    <body class="ui segment">
+            <div class="ui right labeled left icon input">
+                <i class="tags icon"></i>
+                <input type="text" class="new-tag" placeholder="Enter tags">
+                <a class="ui tag label add-tag">
+                    Add Tag
+                </a>
+            </div>
+            <div class="ui clearing divide"></div>
+            <div class="ui middle aligned divided list tag-list">
+            </div>
+    </body>
 </html>

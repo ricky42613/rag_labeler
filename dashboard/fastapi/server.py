@@ -1,11 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List
 import json
 from datetime import datetime
 from trafilatura import extract
 from lxml import html
 import duckdb
+from typing import List
+import os
+class Tags(BaseModel):
+    tags: List[str]
 
 class RAGdata(BaseModel):
     content: str
@@ -14,10 +17,12 @@ class RAGdata(BaseModel):
     answer: str
     url: str
     user: str
+    tags: List[str]
 
+configFile = './config.json'
 app = FastAPI()
 con = duckdb.connect(database='my-knowledge-center.duckdb', read_only=False)
-Fields = [('recId', 'INT', "DEFAULT nextval('seq_rec_id')"), ('content', 'VARCHAR'), ('context', 'VARCHAR'),('question', 'VARCHAR'),('answer', 'VARCHAR'),('url', 'VARCHAR'),('user', 'VARCHAR')]
+Fields = [('recId', 'INT', "DEFAULT nextval('seq_rec_id')"), ('content', 'VARCHAR'), ('context', 'VARCHAR'),('question', 'VARCHAR'),('answer', 'VARCHAR'),('url', 'VARCHAR'),('user', 'VARCHAR'), ('tags', 'VARCHAR[]')]
 con.execute('SHOW TABLES')
 tables = con.fetchall()
 tables = [item[0] for item in tables]
@@ -34,10 +39,19 @@ def save_data(data: RAGdata):
     contentTree = html.fromstring(data.content)
     mainText = extract(contentTree)
     data.content = mainText
-    rec = [getattr(data, field[0]) for field in Fields if field[0] != 'recId']
-    insertCmd = f"INSERT INTO knowledge ({','.join(field[0] for field in Fields if field[0]!='recId')}) VALUES (?, ?, ?, ?, ?, ?)"
+    rec = []
+    for field in Fields:
+        if field[0] == 'recId':
+            continue
+        elif field[0] == 'tags':
+            tags = "','".join(getattr(data, field[0]))
+            rec.append(getattr(data, field[0]))
+        else:
+            rec.append(getattr(data, field[0]))
+    insertCmd = f"INSERT INTO knowledge ({','.join(field[0] for field in Fields if field[0]!='recId')}) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    
     con.execute(insertCmd, rec)
-    con.execute("PRAGMA create_fts_index('knowledge', 'recId', 'context', 'question')")
+    con.execute("PRAGMA create_fts_index('knowledge', 'recId', 'context', 'question', overwrite=1)")
     return {'status': 200}
 
 @app.get("/api/num_of_data")
@@ -85,3 +99,14 @@ def get_data(q: str):
             rec['score'] = item[-1]
         recs.append(rec)
     return {'status': 200, 'data': json.dumps(recs)}
+
+@app.post('/api/tags')
+def save_tags(data: Tags):
+    cfg = {}
+    if os.path.exists(configFile):
+        with open(configFile, 'r') as f:
+            cfg = json.load(f)
+    cfg['tags'] = data.tags
+    with open(configFile, 'w') as f:
+        json.dump(cfg, f, indent=4, ensure_ascii=False)
+    return {"status": 200}
