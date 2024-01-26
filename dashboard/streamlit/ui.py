@@ -17,7 +17,6 @@ def get_data(page, pageSize):
 
 def search_data(q):
     rsp = requests.get(f'{backendUrl}/api/search?q={q}')
-    print(rsp.text)
     rst = json.loads(rsp.text)
     return rst['data']
 
@@ -25,7 +24,6 @@ def delete_data():
     edited_rows = st.session_state["data_editor"]["edited_rows"]
     rows_to_delete = []
     for idx, value in edited_rows.items():
-        print(value)
         if value["selected"] is True:
             rows_to_delete.append(idx)
     if len(rows_to_delete) == 0:
@@ -38,7 +36,23 @@ def delete_data():
         print(f'delete: {delIds}')
 
 def update_data():
-    pass
+    data = json.loads(st.session_state["data"])
+    edited_rows = st.session_state["data_editor"]["edited_rows"]
+    for idx, item in edited_rows.items():
+        newItem = data[idx]
+        updated = []
+        for field in item:
+            if field == 'selected':
+                continue
+            updated.append(field)
+            newItem[field] = item[field]
+        if len(updated):
+            rsp = requests.put(f'{backendUrl}/api/data', json=newItem)
+            rst = json.loads(rsp.text)
+            print(f'update recId {newItem["recId"]}: ', rst)
+        for field in updated:
+            del st.session_state["data_editor"]["edited_rows"][idx][field]
+    
 
 st.set_page_config(
     page_title="My Knowledge Base",
@@ -89,5 +103,5 @@ modified_df = df.copy()
 modified_df["selected"] = False
 # Make Delete be the first column
 modified_df = modified_df[["selected"] + modified_df.columns[:-1].tolist()]
-st.data_editor(modified_df, key="data_editor", hide_index=True, disabled=["recId", "content", "url", "user"])
+st.data_editor(modified_df, key="data_editor", hide_index=True, disabled=["recId", "content", "url", "user"], on_change=update_data)
 

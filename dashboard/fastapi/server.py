@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import json
-from datetime import datetime
 from trafilatura import extract
 from lxml import html
 import duckdb
@@ -11,6 +10,7 @@ class Tags(BaseModel):
     tags: List[str]
 
 class RAGdata(BaseModel):
+    recId: int | None = None
     content: str
     context: str
     question: str
@@ -22,7 +22,7 @@ class RAGdata(BaseModel):
 configFile = './config.json'
 app = FastAPI()
 con = duckdb.connect(database='my-knowledge-center.duckdb', read_only=False)
-Fields = [('recId', 'INT', "DEFAULT nextval('seq_rec_id')"), ('content', 'VARCHAR'), ('context', 'VARCHAR'),('question', 'VARCHAR'),('answer', 'VARCHAR'),('url', 'VARCHAR'),('user', 'VARCHAR'), ('tags', 'VARCHAR[]')]
+Fields = [('recId', 'INT', "DEFAULT nextval('seq_rec_id')", "PRIMARY KEY"), ('content', 'VARCHAR'), ('context', 'VARCHAR'),('question', 'VARCHAR'),('answer', 'VARCHAR'),('url', 'VARCHAR'),('user', 'VARCHAR'), ('tags', 'VARCHAR[]')]
 con.execute('SHOW TABLES')
 tables = con.fetchall()
 tables = [item[0] for item in tables]
@@ -43,14 +43,26 @@ def save_data(data: RAGdata):
     for field in Fields:
         if field[0] == 'recId':
             continue
-        elif field[0] == 'tags':
-            tags = "','".join(getattr(data, field[0]))
-            rec.append(getattr(data, field[0]))
-        else:
-            rec.append(getattr(data, field[0]))
+        rec.append(getattr(data, field[0]))
     insertCmd = f"INSERT INTO knowledge ({','.join(field[0] for field in Fields if field[0]!='recId')}) VALUES (?, ?, ?, ?, ?, ?, ?)"
     
     con.execute(insertCmd, rec)
+    con.execute("PRAGMA create_fts_index('knowledge', 'recId', 'context', 'question', overwrite=1)")
+    return {'status': 200}
+
+@app.put("/api/data")
+def update_data(data: RAGdata):
+    updateField = []
+    updateData = {}
+    for field in Fields:
+        if field[0] not in ['context', 'question', 'answer']:
+            continue
+        updateField.append(f"{field[0]}=${field[0]}")
+        updateData[field[0]] = getattr(data, field[0])
+      
+    updateCmd = f"UPDATE knowledge SET {','.join(updateField)} WHERE recId={data.recId}"
+    
+    con.execute(updateCmd, updateData)
     con.execute("PRAGMA create_fts_index('knowledge', 'recId', 'context', 'question', overwrite=1)")
     return {'status': 200}
 
