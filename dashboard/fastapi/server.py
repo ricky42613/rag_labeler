@@ -75,6 +75,11 @@ def get_data(page: int, pageSize: int):
         recs.append(rec)
     return {'status': 200, 'data': json.dumps(recs)}
 
+@app.delete("/api/data")
+def delete_data(recIds: str):
+    delIds = recIds.split(',')
+    con.execute(f"DELETE FROM knowledge WHERE recId IN ({','.join(['?' for _ in range(len(delIds))])})", delIds)
+    return {'status':200}
 @app.get("/api/search")
 def get_data(q: str):
     """Get segmentation maps from image file"""
