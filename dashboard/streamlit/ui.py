@@ -56,7 +56,6 @@ st.sidebar.title("Setting")
 st.sidebar.divider()
 st.session_state["query"] = st.sidebar.text_input('keyword', '')
 st.title("🔍 My Knowledge Base")
-st.divider()
 pageSize = 10
 # pageSize = st.sidebar.slider('Page size', 1, 100, 10)
 prev, _ ,next = st.columns([2, 8, 2])
@@ -72,7 +71,7 @@ if prev.button("Previous"):
         st.session_state.page_number = 1
     else:
         st.session_state.page_number -= 1
-
+st.divider()
 if st.button("Delete"):
     delete_data()
     if st.session_state["query"]:
