@@ -3,7 +3,7 @@ import requests
 import json
 import pandas as pd
 
-backendUrl = 'http://127.0.0.1:8888'
+backendUrl = 'http://fastapi:8888'
 
 def num_of_data():
     rsp = requests.get(f'{backendUrl}/api/num_of_data')
@@ -15,8 +15,8 @@ def get_data(page, pageSize):
     rst = json.loads(rsp.text)
     return rst['data']
 
-def search_data(q):
-    rsp = requests.get(f'{backendUrl}/api/search?q={q}')
+def search_data(q, tags=[]):
+    rsp = requests.get(f'{backendUrl}/api/search?q={q}&tags={",".join(tags)}')
     rst = json.loads(rsp.text)
     return rst['data']
 
@@ -52,7 +52,14 @@ def update_data():
             print(f'update recId {newItem["recId"]}: ', rst)
         for field in updated:
             del st.session_state["data_editor"]["edited_rows"][idx][field]
-    
+
+def get_tags():
+    rsp = requests.get(f'{backendUrl}/api/tags')
+    rst = json.loads(rsp.text)
+    if rst['status'] == 200:
+        return rst['tags']
+    return []
+
 
 st.set_page_config(
     page_title="My Knowledge Base",
@@ -69,6 +76,11 @@ st.session_state['page_number'] = 1
 st.sidebar.title("Setting")
 st.sidebar.divider()
 st.session_state["query"] = st.sidebar.text_input('keyword', '')
+st.session_state["tags"] = get_tags()
+st.session_state["selected_tags"] = st.sidebar.multiselect(
+    'Tags',
+    st.session_state["tags"]
+)
 st.title("🔍 My Knowledge Base")
 pageSize = 10
 # pageSize = st.sidebar.slider('Page size', 1, 100, 10)
@@ -93,8 +105,8 @@ if st.button("Delete"):
     else:
         st.session_state["data"] = get_data(st.session_state.page_number, pageSize)
 
-if st.session_state["query"]:
-    st.session_state["data"] = search_data(st.session_state["query"])
+if st.session_state["query"] or len(st.session_state["selected_tags"]) > 0:
+    st.session_state["data"] = search_data(st.session_state["query"], st.session_state["selected_tags"])
 else:
     st.session_state["data"] = get_data(st.session_state.page_number, pageSize)
 
@@ -102,6 +114,6 @@ df = pd.DataFrame(eval(st.session_state["data"]))
 modified_df = df.copy()
 modified_df["selected"] = False
 # Make Delete be the first column
-modified_df = modified_df[["selected"] + modified_df.columns[:-1].tolist()]
-st.data_editor(modified_df, key="data_editor", hide_index=True, disabled=["recId", "content", "url", "user"], on_change=update_data)
+st.session_state['renderDf'] = modified_df[["selected"] + modified_df.columns[:-1].tolist()]
+st.data_editor(st.session_state['renderDf'] , key="data_editor", hide_index=True, disabled=["recId", "content", "url", "user"], on_change=update_data)
 
