@@ -1,0 +1,1 @@
+python -m bytewax.run flow -w 5

@@ -1,4 +1,3 @@
-from datetime import datetime
 from bytewax.inputs import DynamicSource, StatelessSourcePartition
 import redis
 import os
@@ -10,7 +9,7 @@ class RedisSource(StatelessSourcePartition):
         self.channel = channel
         self.pubSubscribe.subscribe(self.channel)
     
-    def next_batch(self):
+    def next_batch(self, sched):
         message = self.pubSubscribe.get_message()
         if message is None:
             return []
@@ -18,10 +17,7 @@ class RedisSource(StatelessSourcePartition):
         if isinstance(data, bytes):
             data = data.decode('utf-8')
         return [data]
-
-    def snapshot(self):
-        return None
-
+    
     def close(self):
         self.pubSubscribe.close()
     
