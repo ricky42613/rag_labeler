@@ -1,10 +1,7 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from fastapi import FastAPI
+from pydantic import BaseModel
 import json
-from trafilatura import extract
-from lxml import html
-import duckdb
-from typing import List, Optional
+from typing import List
 import os
 import redis
 import lancedb

@@ -1,12 +1,21 @@
 version: '3'
 
 services:
+  redis:
+      image: "redis:7.2.1"
+      ports:
+        - "6379:6379"
+
   fastapi:
     build: fastapi/
     ports: 
       - 8888:8888
     networks:
       - deploy_network
+    environment:
+        REDIS_HOST: redis
+        REDIS_PORT: 6379
+        REDIS_CHANNEL_NAME: extension
     container_name: fastapi
 
   streamlit:

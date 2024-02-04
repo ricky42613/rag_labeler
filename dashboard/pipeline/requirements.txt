@@ -1,0 +1,9 @@
+bytewax==0.18.1
+lancedb==0.5.1
+lxml==4.9.4
+numpy==1.26.3
+pyarrow==14.0.2
+pydantic==2.6.0
+redis==5.0.1
+trafilatura==1.6.4
+transformers==4.37.2
