@@ -1,8 +1,8 @@
-from bytewax.inputs import DynamicSource, StatelessSourcePartition
+from bytewax.inputs import FixedPartitionedSource, StatefulSourcePartition
 import redis
 import os
 
-class RedisSource(StatelessSourcePartition):
+class RedisSource(StatefulSourcePartition):
     def __init__(self, host, port, channel):
         r = redis.Redis(host=host, port=port)
         self.pubSubscribe = r.pubsub(ignore_subscribe_messages=True)
@@ -17,6 +17,8 @@ class RedisSource(StatelessSourcePartition):
         if isinstance(data, bytes):
             data = data.decode('utf-8')
         return [data]
+    def snapshot(self):
+        return None
     
     def close(self):
         self.pubSubscribe.close()
@@ -24,12 +26,15 @@ class RedisSource(StatelessSourcePartition):
     def next_awake(self):
         return None # called next_batch immediately
 
-class RedisInput(DynamicSource):
+class RedisInput(FixedPartitionedSource):
     def __init__(self) -> None:
         self.redis_host = os.getenv('REDIS_HOST', 'localhost')
         self.redis_port = os.getenv('REDIS_PORT', '6379')
         self.channel_name = os.getenv('REDIS_CHANNEL_NAME', 'extension')
+
+    def list_parts(self):
+        return ['single-part']
     
-    def build(self, now, worker_index, worker_count):
+    def build_part(self, now, for_part, resume_state):
         return RedisSource(self.redis_host, self.redis_port, self.channel_name)
 

@@ -17,7 +17,7 @@ class RAGdata(BaseModel):
         self.content = extract(contentTree)
         return self
     def encode(self, model):
-        text = self.context + '\n' + self.question
+        text = self.context
         embedding = model(text, to_list=True)
         self.embedding = embedding
         return self
