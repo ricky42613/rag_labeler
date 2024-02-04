@@ -6,12 +6,26 @@ import os
 import redis
 import lancedb
 import pyarrow as pa
+from transformers import AutoModel, AutoTokenizer
+import torch.nn.functional as F
+from torch import Tensor
+
+
+def average_pool(last_hidden_states: Tensor,
+                 attention_mask: Tensor) -> Tensor:
+    last_hidden = last_hidden_states.masked_fill(~attention_mask[..., None].bool(), 0.0)
+    return last_hidden.sum(dim=1) / attention_mask.sum(dim=1)[..., None]
 
 # Configuration
 # REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 # REDIS_PORT = int(os.getenv('REDIS_PORT', '6379'))
 # CHANNEL_NAME = os.getenv('REDIS_CHANNEL_NAME', 'extension')
 # print('connect redis')
+model_name = 'intfloat/multilingual-e5-small'
+max_length = 512
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModel.from_pretrained(model_name).to('cpu')
+model.eval()
 CHANNEL_NAME = 'extension'
 redis_connection = redis.Redis(host='localhost', port='6379')
 lancedb_connection = lancedb.connect("../pipeline/knowledge-base")
@@ -98,45 +112,22 @@ def num_of_data():
     return {'status': 200, 'data': len(browser_table)}
 
 @app.get("/api/search")
-def get_data(q: str, tags: str):
-    # tagList = tags.split(',')
-    # if len(q) > 0:
-    #     searchSQL = f'''
-    #     SELECT *, score
-    #     FROM (
-    #         SELECT *, fts_main_knowledge.match_bm25(
-    #             rec_id,
-    #             '{q}'
-    #         ) AS score
-    #         FROM knowledge
-    #     ) sq
-    #     WHERE score IS NOT NULL
-    #     '''
-    #     if len(tagList) > 0:
-    #         searchSQL +=  f' AND list_has_any(tags, $selectedTags)'
-    # else:
-    #     searchSQL = f'''
-    #         SELECT * FROM knowledge
-    #     '''
-    #     if len(tagList) > 0:
-    #         searchSQL +=  f'WHERE list_has_any(knowledge.tags, $selectedTags)'
-    # if len(q) > 0:
-    #     searchSQL += ' ORDER BY score;'
-    # print(searchSQL)
-    # if len(tagList) > 0:
-    #     con.execute(searchSQL, {'selectedTags': tagList})
-    # else:
-    #     con.execute(searchSQL)
-    # data = con.fetchall()
-    recs = []
-    # for item in data:
-    #     rec = {}
-    #     for idx, field in enumerate(Fields):
-    #         rec[field[0]] = item[idx]
-    #         if len(q) > 0:
-    #             rec['score'] = item[-1]
-    #     recs.append(rec)
-    return {'status': 200, 'data': json.dumps(recs)}
+def get_data(q: str=None, tag: str=None):
+    browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
+    global model
+    global tokenizer
+    embeddings = [None]
+    if q != None:
+        batch_dict = tokenizer([q], max_length=512, padding=True, truncation=True, return_tensors='pt')
+        outputs = model(**batch_dict)
+        embeddings = average_pool(outputs.last_hidden_state, batch_dict['attention_mask'])
+        embeddings = F.normalize(embeddings, p=2, dim=1).tolist()
+    print(f'query: {q}')
+    df = browser_table.search(embeddings[0], vector_column_name="embedding").limit(10).to_list()
+    for i in range(len(df)):
+        del df[i]['embedding']
+    print(len(df))
+    return {'status': 200, 'data': json.dumps(df)}
 
 @app.post('/api/tags')
 def save_tags(data: Tags):

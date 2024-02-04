@@ -1,6 +1,14 @@
 from threading import Lock
 import numpy as np
 from transformers import AutoModel, AutoTokenizer
+import torch.nn.functional as F
+from torch import Tensor
+
+
+def average_pool(last_hidden_states: Tensor,
+                 attention_mask: Tensor) -> Tensor:
+    last_hidden = last_hidden_states.masked_fill(~attention_mask[..., None].bool(), 0.0)
+    return last_hidden.sum(dim=1) / attention_mask.sum(dim=1)[..., None]
 
 class EmbeddingModelSingleton:
     _instances = None
@@ -39,7 +47,7 @@ class EmbeddingModelSingleton:
     def __call__(self, input_text: str, to_list: bool = True):
         try:
             tokenized_text = self._tokenizer(
-                input_text,
+                [input_text],
                 padding=True,
                 truncation=True,
                 return_tensors="pt",
@@ -53,7 +61,7 @@ class EmbeddingModelSingleton:
         except Exception:
             return [] if to_list else np.array([])
 
-        embeddings = result.last_hidden_state[:, 0, :].cpu().detach().numpy()
-        if to_list:
-            embeddings = embeddings.flatten().tolist()
-        return embeddings
+        # embeddings = result.last_hidden_state[:, 0, :].cpu().detach().numpy()
+        embeddings = average_pool(result.last_hidden_state, tokenized_text['attention_mask'])
+        embeddings = F.normalize(embeddings, p=2, dim=1).tolist()
+        return embeddings[0]
