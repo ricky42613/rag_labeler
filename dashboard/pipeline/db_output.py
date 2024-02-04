@@ -12,9 +12,9 @@ class DBSink(StatelessSinkPartition):
         batch_data = []
         for rec in recs:
             data = {}
-            data['recId'] = str(uuid.uuid4())
+            data['rec_id'] = str(uuid.uuid4())
             for f in self.fields:
-                if f == 'recId':
+                if f == 'rec_id':
                     continue
                 data[f] = getattr(rec, f)
             batch_data.append(data)
@@ -25,9 +25,9 @@ class DBSink(StatelessSinkPartition):
 class DBOutput(DynamicSink):
     def __init__(self, uri, table_name, dimension) -> None:
         self.db = lancedb.connect(uri)
-        self.fields = ['recId', 'content', 'context', 'question', 'answer', 'url', 'user', 'tags', 'embedding']
+        self.fields = ['rec_id', 'content', 'context', 'question', 'answer', 'url', 'user', 'tags', 'embedding']
         schema = pa.schema([
-            pa.field("recId", pa.string()),
+            pa.field("rec_id", pa.string()),
             pa.field("content", pa.string()),
             pa.field("context", pa.string()),
             pa.field("question", pa.string()),

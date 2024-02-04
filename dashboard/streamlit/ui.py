@@ -3,7 +3,7 @@ import requests
 import json
 import pandas as pd
 
-backendUrl = 'http://fastapi:8888'
+backendUrl = 'http://localhost:8888'
 
 def num_of_data():
     rsp = requests.get(f'{backendUrl}/api/num_of_data')
@@ -29,8 +29,8 @@ def delete_data():
     if len(rows_to_delete) == 0:
         return
     data = json.loads(st.session_state["data"])
-    delIds = ','.join([str(item['recId']) for idx, item in enumerate(data) if idx in rows_to_delete])
-    rsp = requests.delete(f'{backendUrl}/api/data?recIds={delIds}')
+    delIds = ','.join([str(item['rec_id']) for idx, item in enumerate(data) if idx in rows_to_delete])
+    rsp = requests.delete(f'{backendUrl}/api/data?rec_ids={delIds}')
     rst = json.loads(rsp.text)
     if rst['status'] == 200:
         print(f'delete: {delIds}')
@@ -49,7 +49,7 @@ def update_data():
         if len(updated):
             rsp = requests.put(f'{backendUrl}/api/data', json=newItem)
             rst = json.loads(rsp.text)
-            print(f'update recId {newItem["recId"]}: ', rst)
+            print(f'update rec_id {newItem["rec_id"]}: ', rst)
         for field in updated:
             del st.session_state["data_editor"]["edited_rows"][idx][field]
 
@@ -115,5 +115,5 @@ modified_df = df.copy()
 modified_df["selected"] = False
 # Make Delete be the first column
 st.session_state['renderDf'] = modified_df[["selected"] + modified_df.columns[:-1].tolist()]
-st.data_editor(st.session_state['renderDf'] , key="data_editor", hide_index=True, disabled=["recId", "content", "url", "user"], on_change=update_data)
+st.data_editor(st.session_state['renderDf'] , key="data_editor", hide_index=True, disabled=["rec_id", "content", "url", "user"], on_change=update_data)
 
