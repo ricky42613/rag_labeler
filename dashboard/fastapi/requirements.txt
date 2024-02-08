@@ -1,5 +1,7 @@
-fastapi==0.109.1
-lancedb==0.5.1
+fastapi==0.109.2
 pyarrow==14.0.2
-pydantic==2.6.0
+lancedb==0.5.1
+pydantic==2.6.1
 redis==5.0.1
+torch==2.2.0
+transformers==4.37.2
