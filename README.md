@@ -15,4 +15,8 @@
 - **Done!** The extension should have appeared in the list.
 ### Backend Service
 - Go to `./dashboard` by `cd ./dashboard`
-- Start service by `docker-compose up`
+- Inttall the dependency by `pip install`
+    - `pip install -r fastapi/requirements.txt`
+    - `pip install -r pipeline/requirements.txt`
+    - `pip install -r streamlit/requirements.txt`
+- Start service by `sh execute.sh`
