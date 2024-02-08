@@ -112,7 +112,7 @@ def num_of_data():
     return {'status': 200, 'data': len(browser_table)}
 
 @app.get("/api/search")
-def get_data(q: str=None, tags: str=None):
+def get_data(q: str=None, tags: str=''):
     browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
     global model
     global tokenizer
@@ -124,7 +124,7 @@ def get_data(q: str=None, tags: str=None):
         embeddings = F.normalize(embeddings, p=2, dim=1).tolist()
     # df = browser_table.search(embeddings[0], vector_column_name="embedding").limit(10).to_list()
     df = browser_table.search(embeddings[0], vector_column_name="embedding").to_pandas()
-    if tags != None:
+    if len(tags) > 0:
         taglist = tags.split(',')
         print(taglist)
         df = df[df['tags'].apply(lambda item: bool(set(item) & set(taglist)))]    
