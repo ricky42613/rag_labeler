@@ -73,7 +73,7 @@ st.set_page_config(
     }
 )
 st.session_state['page_number'] = 1
-st.sidebar.title("Setting")
+st.sidebar.title("Search")
 st.sidebar.divider()
 st.session_state["query"] = st.sidebar.text_input('keyword', '')
 st.session_state["tags"] = get_tags()

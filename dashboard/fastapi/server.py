@@ -112,7 +112,7 @@ def num_of_data():
     return {'status': 200, 'data': len(browser_table)}
 
 @app.get("/api/search")
-def get_data(q: str=None, tag: str=None):
+def get_data(q: str=None, tags: str=None):
     browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
     global model
     global tokenizer
@@ -122,11 +122,14 @@ def get_data(q: str=None, tag: str=None):
         outputs = model(**batch_dict)
         embeddings = average_pool(outputs.last_hidden_state, batch_dict['attention_mask'])
         embeddings = F.normalize(embeddings, p=2, dim=1).tolist()
-    print(f'query: {q}')
-    df = browser_table.search(embeddings[0], vector_column_name="embedding").limit(10).to_list()
-    for i in range(len(df)):
-        del df[i]['embedding']
-    print(len(df))
+    # df = browser_table.search(embeddings[0], vector_column_name="embedding").limit(10).to_list()
+    df = browser_table.search(embeddings[0], vector_column_name="embedding").to_pandas()
+    if tags != None:
+        taglist = tags.split(',')
+        print(taglist)
+        df = df[df['tags'].apply(lambda item: bool(set(item) & set(taglist)))]    
+    df = df.drop(columns=['embedding'])
+    df = json.loads(df.to_json(orient="records"))[:10]
     return {'status': 200, 'data': json.dumps(df)}
 
 @app.post('/api/tags')
