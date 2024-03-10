@@ -122,11 +122,9 @@ def get_data(q: str=None, tags: str=''):
         outputs = model(**batch_dict)
         embeddings = average_pool(outputs.last_hidden_state, batch_dict['attention_mask'])
         embeddings = F.normalize(embeddings, p=2, dim=1).tolist()
-    # df = browser_table.search(embeddings[0], vector_column_name="embedding").limit(10).to_list()
     df = browser_table.search(embeddings[0], vector_column_name="embedding").to_pandas()
     if len(tags) > 0:
         taglist = tags.split(',')
-        print(taglist)
         df = df[df['tags'].apply(lambda item: bool(set(item) & set(taglist)))]    
     df = df.drop(columns=['embedding'])
     df = json.loads(df.to_json(orient="records"))[:10]

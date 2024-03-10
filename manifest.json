@@ -24,5 +24,9 @@
         "js": ["semanticUI/jquery.min.js", "semanticUI/semantic.min.js", "label-modal.js"],
         "css" : ["semanticUI/semantic.min.css"],
         "matches": ["*://*/*"]
+    },
+    {
+        "js": ["search-ctx.js"],
+        "matches": ["https://chat.openai.com/", "https://chat.openai.com/c/*"]
     }]
 }

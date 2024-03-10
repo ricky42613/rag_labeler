@@ -108,5 +108,19 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse){
             });
         });
     }
+    else if (msg.type == 'search-context'){
+        fetch(`http://127.0.0.1:8888/api/search?q=${msg.data.question}`, {
+            method: 'GET'
+        }).then(r=>r.json()).then(rsp=>{
+            if (rsp.status == 200){
+                sendResponse({'status': 200, 'data': rsp.data})
+            }else{
+                sendResponse({'status': 500})
+            }
+        }).catch(async e=>{
+            console.log(e)
+            sendResponse({'status': 500})
+        })
+    }
     return true
 })
