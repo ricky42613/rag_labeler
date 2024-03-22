@@ -19,7 +19,7 @@
                         console.log('search-context: ', data);
                         if (data.length > 0){
                             let context = ''
-                            if (data[0]._distance < 0.4){
+                            if (data[0].score>1){
                                 context += `${data[0].context}\n${data[0].question}\n${data[0].answer}\n`
                             }
                             document.querySelector('#prompt-textarea').value = context + '\n' + prompt

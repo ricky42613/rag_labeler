@@ -109,7 +109,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse){
         });
     }
     else if (msg.type == 'search-context'){
-        fetch(`http://127.0.0.1:8888/api/search?q=${msg.data.question}`, {
+        fetch(`http://127.0.0.1:8888/api/search?q=${msg.data.question}&mode=hybrid`, {
             method: 'GET'
         }).then(r=>r.json()).then(rsp=>{
             if (rsp.status == 200){

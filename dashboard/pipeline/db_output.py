@@ -19,6 +19,7 @@ class DBSink(StatelessSinkPartition):
                 data[f] = getattr(rec, f)
             batch_data.append(data)
         self.table.add(batch_data)
+        self.table.create_fts_index("context", writer_heap_size=1024 * 1024 * 512, replace=True)
         print(len(self.table))
 
 

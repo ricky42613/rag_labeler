@@ -5,12 +5,17 @@ from typing import List
 import os
 import redis
 import lancedb
+import pandas as pd 
 import pyarrow as pa
 from transformers import AutoModel, AutoTokenizer
 import torch.nn.functional as F
 from torch import Tensor
+from jieba import Tokenizer
 
+jiebaTokenizer = Tokenizer()
 
+jiebaTokenizer.set_dictionary("/Users/rickyhsu/GAIS/rag_labeler/dashboard/fastapi/dict/merge.4jieba.default.dict")
+jiebaTokenizer.load_userdict("/Users/rickyhsu/GAIS/rag_labeler/dashboard/fastapi/dict/merge.4jieba.extra.dict")
 def average_pool(last_hidden_states: Tensor,
                  attention_mask: Tensor) -> Tensor:
     last_hidden = last_hidden_states.masked_fill(~attention_mask[..., None].bool(), 0.0)
@@ -42,7 +47,43 @@ schema = pa.schema([
             pa.field("tags", pa.list_(pa.string())),
             pa.field("embedding", pa.list_(pa.float64(), dimension)),
         ])
+browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
+browser_table.create_fts_index("context", writer_heap_size=1024 * 1024 * 512, replace=True)
+def v_search(q:str):
+    batch_dict = tokenizer([q], max_length=512, padding=True, truncation=True, return_tensors='pt')
+    outputs = model(**batch_dict)
+    embeddings = average_pool(outputs.last_hidden_state, batch_dict['attention_mask'])
+    embeddings = F.normalize(embeddings, p=2, dim=1).tolist()
+    df = browser_table.search(embeddings[0], vector_column_name="embedding").to_pandas()
+    return df
 
+def f_search(q:str):
+    q = q.lower()
+    toks = [word for word in jiebaTokenizer.cut(q.strip(), HMM=False) if not word.isspace()]
+    df = browser_table.search(" ".join(toks)).to_pandas()
+    return df
+
+def hybrid_rerank(df_vs, df_fts):
+    vs_rst = json.loads(df_vs.to_json(orient="records"))
+    fts_rst = json.loads(df_fts.to_json(orient="records"))
+    last_id = 0
+    tab = {}
+    ret = []
+    alpha = 0.5
+    for item in vs_rst:
+        tab[item['rec_id']] = last_id
+        last_id += 1
+        item['score'] = alpha * (1-item['_distance'])
+        ret.append(item)
+    for item in fts_rst:
+        item['fts_score'] = item['score']
+        if item['rec_id'] not in tab:
+            item['score'] = (1-alpha) * item['score']
+            ret.append(item)
+        else:
+            rec_idx = tab[item['rec_id']]
+            ret[rec_idx]['score'] += (1-alpha) * item['score']
+    return pd.DataFrame.from_records(ret)
 class Tags(BaseModel):
     tags: List[str]
 
@@ -62,12 +103,13 @@ app = FastAPI()
 def save_data(data: RAGdata):
     rec = data.__dict__
     del rec['rec_id']
+    toks = [word for word in jiebaTokenizer.cut(rec['context'].strip(), HMM=False) if not word.isspace()]
+    rec['context'] = ' '.join(toks)
     redis_connection.publish(CHANNEL_NAME, json.dumps(rec))
     return {'status': 200}
 
 @app.put("/api/data")
 def update_data(data: RAGdata):
-    browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
     updateData = {}
     for field in fields:
         if field not in ['context', 'question', 'answer']:
@@ -79,7 +121,6 @@ def update_data(data: RAGdata):
 
 @app.get("/api/data")
 def get_data(page: int, pageSize: int):
-    browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
     begIdx = pageSize * (page-1)
     total = len(browser_table)
     endIdx = min(begIdx + pageSize, total)
@@ -102,31 +143,29 @@ def get_data(page: int, pageSize: int):
 @app.delete("/api/data")
 def delete_data(rec_ids: str):
     id_list = [f'"{rec_id}"' for rec_id in rec_ids.split(',')]
-    browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
     browser_table.delete(f'rec_id IN ({",".join(id_list)})')
     return {'status':200}
 
 @app.get("/api/num_of_data")
 def num_of_data():
-    browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
     return {'status': 200, 'data': len(browser_table)}
 
 @app.get("/api/search")
-def get_data(q: str=None, tags: str=''):
-    browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
-    global model
-    global tokenizer
-    embeddings = [None]
-    if q != None:
-        batch_dict = tokenizer([q], max_length=512, padding=True, truncation=True, return_tensors='pt')
-        outputs = model(**batch_dict)
-        embeddings = average_pool(outputs.last_hidden_state, batch_dict['attention_mask'])
-        embeddings = F.normalize(embeddings, p=2, dim=1).tolist()
-    df = browser_table.search(embeddings[0], vector_column_name="embedding").to_pandas()
+def get_data(q: str=None, tags: str='', mode: str='vector'):
+    if q == None:
+        df = browser_table.search(None, vector_column_name="embedding").to_pandas()
+    elif mode == 'vector':
+        df = v_search(q)
+    elif mode == 'fts':
+        df = f_search(q)
+    elif mode == 'hybrid':
+        df_vs = v_search(q)
+        df_fts = f_search(q)
+        df = hybrid_rerank(df_vs, df_fts)
+    df = df.drop(columns=['embedding'])
     if len(tags) > 0:
         taglist = tags.split(',')
         df = df[df['tags'].apply(lambda item: bool(set(item) & set(taglist)))]    
-    df = df.drop(columns=['embedding'])
     df = json.loads(df.to_json(orient="records"))[:10]
     return {'status': 200, 'data': json.dumps(df)}
 

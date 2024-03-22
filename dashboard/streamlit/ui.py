@@ -16,7 +16,7 @@ def get_data(page, pageSize):
     return rst['data']
 
 def search_data(q, tags=[]):
-    rsp = requests.get(f'{backendUrl}/api/search?q={q}&tags={",".join(tags)}')
+    rsp = requests.get(f'{backendUrl}/api/search?q={q}&tags={",".join(tags)}&mode=vector')
     rst = json.loads(rsp.text)
     return rst['data']
 
@@ -115,5 +115,5 @@ modified_df = df.copy()
 modified_df["selected"] = False
 # Make Delete be the first column
 st.session_state['renderDf'] = modified_df[["selected"] + modified_df.columns[:-1].tolist()]
-st.data_editor(st.session_state['renderDf'] , key="data_editor", hide_index=True, disabled=["rec_id", "content", "url", "user"], on_change=update_data)
+st.data_editor(st.session_state['renderDf'] , key="data_editor", hide_index=True, disabled=["rec_id", "content", "url", "user","score","_distance"], on_change=update_data)
 
