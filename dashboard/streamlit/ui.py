@@ -16,7 +16,7 @@ def get_data(page, pageSize):
     return rst['data']
 
 def search_data(q, tags=[]):
-    rsp = requests.get(f'{backendUrl}/api/search?q={q}&tags={",".join(tags)}&mode=vector')
+    rsp = requests.get(f'{backendUrl}/api/search?q={q}&tags={",".join(tags)}&mode=fts')
     rst = json.loads(rsp.text)
     return rst['data']
 

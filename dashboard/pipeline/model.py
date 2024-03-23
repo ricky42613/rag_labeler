@@ -61,7 +61,6 @@ class EmbeddingModelSingleton:
         except Exception:
             return [] if to_list else np.array([])
 
-        # embeddings = result.last_hidden_state[:, 0, :].cpu().detach().numpy()
         embeddings = average_pool(result.last_hidden_state, tokenized_text['attention_mask'])
         embeddings = F.normalize(embeddings, p=2, dim=1).tolist()
         return embeddings[0]

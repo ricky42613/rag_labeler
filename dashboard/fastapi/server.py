@@ -7,7 +7,7 @@ import redis
 import lancedb
 import pandas as pd 
 import pyarrow as pa
-from transformers import AutoModel, AutoTokenizer
+from mlx_utils import build_model, mlx_encode
 import torch.nn.functional as F
 from torch import Tensor
 from jieba import Tokenizer
@@ -21,16 +21,9 @@ def average_pool(last_hidden_states: Tensor,
     last_hidden = last_hidden_states.masked_fill(~attention_mask[..., None].bool(), 0.0)
     return last_hidden.sum(dim=1) / attention_mask.sum(dim=1)[..., None]
 
-# Configuration
-# REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-# REDIS_PORT = int(os.getenv('REDIS_PORT', '6379'))
-# CHANNEL_NAME = os.getenv('REDIS_CHANNEL_NAME', 'extension')
-# print('connect redis')
 model_name = 'intfloat/multilingual-e5-small'
 max_length = 512
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModel.from_pretrained(model_name).to('cpu')
-model.eval()
+model, tokenizer = build_model('model_cfg.json', 'mlx_bert.npz')
 CHANNEL_NAME = 'extension'
 redis_connection = redis.Redis(host='localhost', port='6379')
 lancedb_connection = lancedb.connect("../pipeline/knowledge-base")
@@ -50,10 +43,8 @@ schema = pa.schema([
 browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
 browser_table.create_fts_index("context", writer_heap_size=1024 * 1024 * 512, replace=True)
 def v_search(q:str):
-    batch_dict = tokenizer([q], max_length=512, padding=True, truncation=True, return_tensors='pt')
-    outputs = model(**batch_dict)
-    embeddings = average_pool(outputs.last_hidden_state, batch_dict['attention_mask'])
-    embeddings = F.normalize(embeddings, p=2, dim=1).tolist()
+    q = q[:max_length]
+    embeddings = mlx_encode(q, tokenizer, model)
     df = browser_table.search(embeddings[0], vector_column_name="embedding").to_pandas()
     return df
 
@@ -71,6 +62,7 @@ def hybrid_rerank(df_vs, df_fts):
     ret = []
     alpha = 0.5
     for item in vs_rst:
+        item['fts_score'] = 0
         tab[item['rec_id']] = last_id
         last_id += 1
         item['score'] = alpha * (1-item['_distance'])
