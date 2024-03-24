@@ -3,8 +3,9 @@ import numpy as np
 from transformers import AutoModel, AutoTokenizer
 import torch.nn.functional as F
 from torch import Tensor
-
-
+import sys
+sys.path.append("../fastapi/")
+import mlx_utils
 def average_pool(last_hidden_states: Tensor,
                  attention_mask: Tensor) -> Tensor:
     last_hidden = last_hidden_states.masked_fill(~attention_mask[..., None].bool(), 0.0)
@@ -19,14 +20,10 @@ class EmbeddingModelSingleton:
                 cls._instances = super().__new__(cls)
         return cls._instances
     
-    def __init__(self, model_path, max_input_length, device):
-        self.model_path = model_path
-        self._device = device
+    def __init__(self, max_input_length):
         self._max_input_length = max_input_length
 
-        self._tokenizer = AutoTokenizer.from_pretrained(self.model_path)
-        self._model = AutoModel.from_pretrained(self.model_path).to(self._device)
-        self._model.eval()
+        self.model, self._tokenizer =  mlx_utils.build_model('../fastapi/model_cfg.json', '../fastapi/mlx_bert.npz')
 
     @property
     def max_input_length(self) -> int:
@@ -46,21 +43,7 @@ class EmbeddingModelSingleton:
 
     def __call__(self, input_text: str, to_list: bool = True):
         try:
-            tokenized_text = self._tokenizer(
-                [input_text],
-                padding=True,
-                truncation=True,
-                return_tensors="pt",
-                max_length=self._max_input_length,
-            ).to(self._device)
+            embeddings =  mlx_utils.mlx_encode(input_text[:self.max_input_length-2], self._tokenizer, self.model)
+            return embeddings[0]
         except Exception:
             return [] if to_list else np.array([])
-
-        try:
-            result = self._model(**tokenized_text)
-        except Exception:
-            return [] if to_list else np.array([])
-
-        embeddings = average_pool(result.last_hidden_state, tokenized_text['attention_mask'])
-        embeddings = F.normalize(embeddings, p=2, dim=1).tolist()
-        return embeddings[0]

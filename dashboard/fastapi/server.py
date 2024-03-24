@@ -14,14 +14,13 @@ from jieba import Tokenizer
 
 jiebaTokenizer = Tokenizer()
 
-jiebaTokenizer.set_dictionary("/Users/rickyhsu/GAIS/rag_labeler/dashboard/fastapi/dict/merge.4jieba.default.dict")
-jiebaTokenizer.load_userdict("/Users/rickyhsu/GAIS/rag_labeler/dashboard/fastapi/dict/merge.4jieba.extra.dict")
+jiebaTokenizer.set_dictionary("./dict/merge.4jieba.default.dict")
+jiebaTokenizer.load_userdict("./dict/merge.4jieba.extra.dict")
 def average_pool(last_hidden_states: Tensor,
                  attention_mask: Tensor) -> Tensor:
     last_hidden = last_hidden_states.masked_fill(~attention_mask[..., None].bool(), 0.0)
     return last_hidden.sum(dim=1) / attention_mask.sum(dim=1)[..., None]
 
-model_name = 'intfloat/multilingual-e5-small'
 max_length = 512
 model, tokenizer = build_model('model_cfg.json', 'mlx_bert.npz')
 CHANNEL_NAME = 'extension'
@@ -45,12 +44,14 @@ browser_table.create_fts_index("context", writer_heap_size=1024 * 1024 * 512, re
 def v_search(q:str):
     q = q[:max_length]
     embeddings = mlx_encode(q, tokenizer, model)
+    browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
     df = browser_table.search(embeddings[0], vector_column_name="embedding").to_pandas()
     return df
 
 def f_search(q:str):
     q = q.lower()
     toks = [word for word in jiebaTokenizer.cut(q.strip(), HMM=False) if not word.isspace()]
+    browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
     df = browser_table.search(" ".join(toks)).to_pandas()
     return df
 
@@ -108,11 +109,13 @@ def update_data(data: RAGdata):
             continue
         updateData[field] = getattr(data, field)
     print(updateData)
+    browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
     browser_table.update(where=f'rec_id = "{data.rec_id}"', values=updateData)
     return {'status': 200}
 
 @app.get("/api/data")
 def get_data(page: int, pageSize: int):
+    browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
     begIdx = pageSize * (page-1)
     total = len(browser_table)
     endIdx = min(begIdx + pageSize, total)
@@ -134,16 +137,19 @@ def get_data(page: int, pageSize: int):
 
 @app.delete("/api/data")
 def delete_data(rec_ids: str):
+    browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
     id_list = [f'"{rec_id}"' for rec_id in rec_ids.split(',')]
     browser_table.delete(f'rec_id IN ({",".join(id_list)})')
     return {'status':200}
 
 @app.get("/api/num_of_data")
 def num_of_data():
+    browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
     return {'status': 200, 'data': len(browser_table)}
 
 @app.get("/api/search")
 def get_data(q: str=None, tags: str='', mode: str='vector'):
+    browser_table = lancedb_connection.create_table("browser", schema=schema, exist_ok=True)
     if q == None:
         df = browser_table.search(None, vector_column_name="embedding").to_pandas()
     elif mode == 'vector':

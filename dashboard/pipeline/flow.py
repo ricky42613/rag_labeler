@@ -15,7 +15,7 @@ def parse_rec(msg):
 flow = Dataflow("rag-pipeline")
 model_name = 'intfloat/multilingual-e5-small'
 max_length = 512
-encoder = EmbeddingModelSingleton(model_path=model_name, max_input_length=max_length, device="cpu")
+encoder = EmbeddingModelSingleton(max_input_length=max_length)
 print('Waiting input!')
 stream = op.input("input", flow, RedisInput())
 stream = op.flat_map("parse", stream, lambda msg: parse_rec(msg))
